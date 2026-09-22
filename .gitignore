@@ -1,0 +1,4 @@
+bin/
+.vscode/
+generated_program.py
+*.class
