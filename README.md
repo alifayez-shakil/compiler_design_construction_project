@@ -1,4 +1,4 @@
-﻿# compiler_design_construction_project
+# compiler_design_construction_project
 **CSE-4114 | Compiler Design and Construction Sessional**  
 *Department of Computer Science and Engineering*
 

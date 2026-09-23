@@ -1,3 +1,4 @@
+package compiler;
 public enum TokenType {
     // Keywords
     GONA,       // integer type

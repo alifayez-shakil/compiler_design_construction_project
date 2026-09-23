@@ -1,3 +1,5 @@
+package compiler;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -13,9 +15,10 @@ import java.util.Map;
  */
 public class SemanticAnalyzer {
     private final List<Map<String, ValueType>> scopes = new ArrayList<>();
-    private boolean hadError = false;
+    private final Diagnostic diagnostics;
 
-    public SemanticAnalyzer() {
+    public SemanticAnalyzer(Diagnostic diagnostics) {
+        this.diagnostics = diagnostics;
         scopes.add(new HashMap<>()); // global scope
     }
 
@@ -23,7 +26,7 @@ public class SemanticAnalyzer {
         for (Ast.Stmt stmt : program.statements) {
             checkStmt(stmt);
         }
-        return !hadError;
+        return !diagnostics.hasErrors();
     }
 
     // ---------- Statements ----------
@@ -218,7 +221,6 @@ public class SemanticAnalyzer {
     }
 
     private void error(int line, String message) {
-        hadError = true;
-        System.out.println("Semantic Error (line " + line + "): " + message);
+        diagnostics.error("Semantic", line, message);
     }
 }

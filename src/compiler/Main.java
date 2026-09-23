@@ -1,58 +1,51 @@
-import java.util.List;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+package compiler;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Entry point. Runs every .bng file under tests/ through the full pipeline:
+ *   Lexer -> Parser -> SemanticAnalyzer -> CodeGenerator -> (run the output)
+ *
+ * Each test's generated Python file is written to build/runs/<test-name>/,
+ * matching the project's target folder layout. This also serves as a
+ * simple regression check: the "error" tests are expected to fail at a
+ * specific phase, and this run confirms they still do.
+ */
 public class Main {
 
-    public static void main(String[] args) {
+    private static final Path TESTS_DIR = Paths.get("tests");
+    private static final Path RUNS_DIR = Paths.get("build", "runs");
 
-        runTest("1. VALID PROGRAM (declarations, if/else, while, print)",
-                "gona x := 10;\n" +
-                "doshomik y := 2.5;\n" +
-                "gona sum := x + 5 * 2;\n" +
-                "\n" +
-                "jodi (sum > 15) {\n" +
-                "    koiyo(sum);\n" +
-                "} nohoile {\n" +
-                "    koiyo(x);\n" +
-                "}\n" +
-                "\n" +
-                "jotokhon (x > 0) {\n" +
-                "    x := x - 1;\n" +
-                "}\n"
-        );
+    public static void main(String[] args) throws IOException {
+        File[] testFiles = TESTS_DIR.toFile().listFiles((dir, name) -> name.endsWith(".bng"));
 
-        runTest("2. SYNTAX ERROR (missing semicolon, missing expression)",
-                "gona x := 10\n" +            // missing ';'
-                "gona result := x + ;\n" +    // missing expression after '+'
-                "koiyo(result)\n"             // missing ';'
-        );
+        if (testFiles == null || testFiles.length == 0) {
+            System.out.println("No .bng test files found under " + TESTS_DIR.toAbsolutePath());
+            System.out.println("Run this from the project root (where the tests/ folder lives).");
+            return;
+        }
 
-        runTest("3. TYPE ERROR (assigning doshomik value into gona variable)",
-                "gona x := 3.14;\n" +
-                "koiyo(x);\n"
-        );
+        Arrays.sort(testFiles); // stable, alphabetical order
 
-        runTest("4. USE-BEFORE-DECLARE ERROR",
-                "gona x := y + 1;\n"
-        );
-
-        runTest("5. DIVISION BY ZERO (caught at semantic check)",
-                "gona x := 10 / 0;\n"
-        );
-
-        runTest("6. CONDITION TYPE ERROR (plain arithmetic instead of a comparison)",
-                "gona x := 5;\n" +
-                "jodi (x + 1) {\n" +
-                "    koiyo(x);\n" +
-                "}\n"
-        );
+        for (File file : testFiles) {
+            String name = file.getName().replace(".bng", "");
+            String source = Files.readString(file.toPath());
+            runTest(name, source);
+        }
     }
 
-    private static void runTest(String title, String source) {
+    private static void runTest(String name, String source) throws IOException {
         System.out.println("========================================");
-        System.out.println(title);
+        System.out.println(name);
         System.out.println("========================================");
+
+        Diagnostic diagnostics = new Diagnostic();
 
         // ---------- PHASE 1: LEXER ----------
         System.out.println("\n===== PHASE 1: LEXICAL ANALYSIS (TOKENS) =====\n");
@@ -64,11 +57,10 @@ public class Main {
 
         // ---------- PHASE 2: PARSER ----------
         System.out.println("\n===== PHASE 2: SYNTAX ANALYSIS (PARSER) =====\n");
-        Parser parser = new Parser(tokens);
+        Parser parser = new Parser(tokens, diagnostics);
         Ast.Program program = parser.parseProgram();
-        boolean parseOk = !parser.hasErrors();
 
-        if (!parseOk) {
+        if (diagnostics.hasErrors()) {
             System.out.println("\nParsing Failed - Syntax is Invalid");
             System.out.println("(skipping semantic analysis and code generation)\n");
             return;
@@ -77,7 +69,7 @@ public class Main {
 
         // ---------- PHASE 3: SEMANTIC ANALYSIS ----------
         System.out.println("\n===== PHASE 3: SEMANTIC ANALYSIS =====\n");
-        SemanticAnalyzer analyzer = new SemanticAnalyzer();
+        SemanticAnalyzer analyzer = new SemanticAnalyzer(diagnostics);
         boolean semanticOk = analyzer.analyze(program);
 
         if (!semanticOk) {
@@ -89,27 +81,26 @@ public class Main {
 
         // ---------- PHASE 4: CODE GENERATION (PYTHON) ----------
         System.out.println("\n===== PHASE 4: CODE GENERATION (PYTHON TARGET) =====\n");
-        PythonCodeGenerator generator = new PythonCodeGenerator();
+        CodeGenerator generator = new CodeGenerator();
         String pythonCode = generator.generate(program);
         System.out.println(pythonCode);
 
         // ---------- PHASE 5: EXECUTE GENERATED PYTHON ----------
-        try {
-            Files.writeString(Paths.get("generated_program.py"), pythonCode);
-            System.out.println("(generated code written to generated_program.py)\n");
-            runPython("generated_program.py");
-        } catch (Exception e) {
-            System.out.println("Could not write generated file: " + e.getMessage());
-        }
+        Path runDir = RUNS_DIR.resolve(name);
+        Files.createDirectories(runDir);
+        Path outputFile = runDir.resolve("generated_program.py");
+        Files.writeString(outputFile, pythonCode);
+        System.out.println("(generated code written to " + outputFile + ")\n");
+        runPython(outputFile);
 
         System.out.println();
     }
 
     /** Try to run the generated Python file with python3, falling back to python. */
-    private static void runPython(String filename) {
+    private static void runPython(Path filePath) {
         for (String cmd : new String[]{"python3", "python"}) {
             try {
-                Process p = new ProcessBuilder(cmd, filename)
+                Process p = new ProcessBuilder(cmd, filePath.toString())
                         .redirectErrorStream(true)
                         .start();
                 String output = new String(p.getInputStream().readAllBytes());

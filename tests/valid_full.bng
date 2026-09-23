@@ -1,0 +1,14 @@
+# A complete valid program: declarations, if/else, while, print
+gona x := 10;
+doshomik y := 2.5;
+gona sum := x + 5 * 2;
+
+jodi (sum > 15) {
+    koiyo(sum);
+} nohoile {
+    koiyo(x);
+}
+
+jotokhon (x > 0) {
+    x := x - 1;
+}

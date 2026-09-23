@@ -1,0 +1,2 @@
+# Should FAIL semantic analysis: literal division by zero.
+gona x := 10 / 0;

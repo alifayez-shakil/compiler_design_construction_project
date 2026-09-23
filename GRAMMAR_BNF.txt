@@ -1,0 +1,63 @@
+<program>        ::= <statement>* EOF
+
+<statement>      ::= <var-decl>
+                    | <assignment>
+                    | <print-stmt>
+                    | <if-stmt>
+                    | <while-stmt>
+                    | <block>
+
+<var-decl>       ::= ( "gona" | "doshomik" ) IDENTIFIER ":=" <expression> ";"
+
+<assignment>     ::= IDENTIFIER ":=" <expression> ";"
+
+<print-stmt>     ::= "koiyo" "(" <expression> ")" ";"
+
+<if-stmt>        ::= "jodi" "(" <expression> ")" <block> [ "nohoile" <block> ]
+
+<while-stmt>     ::= "jotokhon" "(" <expression> ")" <block>
+
+<block>          ::= "{" <statement>* "}"
+
+<expression>     ::= <equality>
+
+<equality>       ::= <comparison> ( ( "==" | "!=" ) <comparison> )*
+
+<comparison>     ::= <term> ( ( ">" | ">=" | "<" | "<=" ) <term> )*
+
+<term>           ::= <factor> ( ( "+" | "-" ) <factor> )*
+
+<factor>         ::= <unary> ( ( "*" | "/" | "%" ) <unary> )*
+
+<unary>          ::= ( "+" | "-" ) <unary>
+                    | <primary>
+
+<primary>        ::= NUMBER
+                    | IDENTIFIER
+                    | "(" <expression> ")"
+
+Terminals:
+  IDENTIFIER  ::= letter (letter | digit | "_")*
+  NUMBER      ::= digit+ ( "." digit+ )?
+
+Keywords (reserved, cannot be used as identifiers):
+  gona        integer type
+  doshomik    decimal type
+  jodi        if
+  nohoile     else
+  jotokhon    while
+  koiyo       print
+
+Comments:
+  "#" to end of line.
+
+Notes on semantics (enforced by SemanticAnalyzer, not the grammar above):
+  - An identifier must be declared with "gona" or "doshomik" before use.
+  - An identifier cannot be redeclared in the same scope (each { } block
+    introduces a new scope).
+  - A gona (int) value may widen into a doshomik (decimal) variable;
+    a doshomik value may NOT be narrowed into a gona variable.
+  - The condition inside jodi(...) / jotokhon(...) must be the result of a
+    comparison or equality operator, not a plain arithmetic expression.
+  - "%" requires both operands to be gona (integer).
+  - Division or modulo by a literal 0 is rejected at semantic analysis.

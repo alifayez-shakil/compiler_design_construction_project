@@ -1,0 +1,3 @@
+# Should FAIL semantic analysis: assigning a doshomik value into a gona variable.
+gona x := 3.14;
+koiyo(x);

@@ -1,3 +1,5 @@
+package compiler;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -7,12 +9,12 @@ import java.util.Map;
  * Walks the AST (after semantic analysis) and emits equivalent Python code.
  * Keeps a small scope stack only to know when '/' should become '//' (int division).
  */
-public class PythonCodeGenerator {
+public class CodeGenerator {
     private final StringBuilder out = new StringBuilder();
     private int indent = 0;
     private final List<Map<String, ValueType>> scopes = new ArrayList<>();
 
-    public PythonCodeGenerator() {
+    public CodeGenerator() {
         scopes.add(new HashMap<>());
     }
 

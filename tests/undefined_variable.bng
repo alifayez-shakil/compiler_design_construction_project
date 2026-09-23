@@ -1,0 +1,2 @@
+# Should FAIL semantic analysis: 'y' is used before it is declared.
+gona x := y + 1;

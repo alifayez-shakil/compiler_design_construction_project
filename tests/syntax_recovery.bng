@@ -1,0 +1,5 @@
+# Should FAIL syntax analysis with multiple errors, and recover after each
+# to report the next one, instead of stopping at the first.
+gona x := 10
+gona result := x + ;
+koiyo(result)

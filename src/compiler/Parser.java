@@ -1,3 +1,5 @@
+package compiler;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,12 +26,14 @@ import java.util.List;
  */
 public class Parser {
     private final List<Token> tokens;
+    private final Diagnostic diagnostics;
     private int current = 0;
     private boolean hadError = false;   // error during the CURRENT statement
     private boolean overallFailed = false;
 
-    public Parser(List<Token> tokens) {
+    public Parser(List<Token> tokens, Diagnostic diagnostics) {
         this.tokens = tokens;
+        this.diagnostics = diagnostics;
     }
 
     public Ast.Program parseProgram() {
@@ -365,7 +369,7 @@ public class Parser {
     private void error(String message) {
         hadError = true;
         Token t = peek();
-        System.out.println("Syntax Error (line " + t.line + "): " + message);
+        diagnostics.error("Syntax", t.line, message);
     }
 
     /** Skip tokens until a likely statement boundary, so parsing can continue. */

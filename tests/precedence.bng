@@ -1,0 +1,8 @@
+# Checks that * and / bind tighter than + and -,
+# and that parentheses override precedence.
+gona a := 2 + 3 * 4;
+gona b := (2 + 3) * 4;
+gona c := 20 - 8 / 2;
+koiyo(a);
+koiyo(b);
+koiyo(c);
