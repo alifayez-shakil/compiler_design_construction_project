@@ -1,0 +1,18 @@
+# Demonstrates block-local variables and the unused-variable warning.
+#
+# 'temp' is declared separately inside each branch of the if/else. This is
+# allowed because the two blocks are siblings, not nested -- only one of
+# them ever runs, so there's no shared 'temp' being overwritten. (Trying to
+# redeclare a name that's already visible from an ENCLOSING scope, i.e.
+# true shadowing, is rejected -- see type_error.bng-style tests.)
+
+gona a := 7;
+jodi (a > 0) {
+    gona temp := a * 2;
+    koiyo(temp);
+} nohoile {
+    gona temp := 0;
+    koiyo(temp);
+}
+
+gona unused := 99;
