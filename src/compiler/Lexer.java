@@ -3,13 +3,26 @@ package compiler;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Turns source text into a list of tokens.
+ *
+ * Previously, an unrecognized character (a stray '@', a bare '=' instead of
+ * '==' or ':=', etc.) was silently wrapped in an UNKNOWN token and only
+ * surfaced later as a confusing parser error like "Expected a statement but
+ * found '@'." Now the Lexer reports these directly, through the same
+ * Diagnostic used by the Parser and SemanticAnalyzer, with a message that
+ * actually explains what's wrong at the character level -- which is where
+ * the problem actually is.
+ */
 public class Lexer {
     private final String source;
+    private final Diagnostic diagnostics;
     private int pos = 0;
     private int line = 1;
 
-    public Lexer(String source) {
+    public Lexer(String source, Diagnostic diagnostics) {
         this.source = source;
+        this.diagnostics = diagnostics;
     }
 
     public List<Token> scanTokens() {
@@ -51,6 +64,7 @@ public class Lexer {
                     pos += 2;
                     tokens.add(new Token(TokenType.ASSIGN, ":=", startLine));
                 } else {
+                    error("Unexpected ':'. Did you mean ':=' (assignment)?");
                     tokens.add(new Token(TokenType.UNKNOWN, String.valueOf(c), line));
                     pos++;
                 }
@@ -64,6 +78,7 @@ public class Lexer {
                     pos += 2;
                     tokens.add(new Token(TokenType.EQ, "==", startLine));
                 } else {
+                    error("Unexpected '='. Use ':=' for assignment or '==' to compare.");
                     tokens.add(new Token(TokenType.UNKNOWN, "=", line));
                     pos++;
                 }
@@ -77,6 +92,7 @@ public class Lexer {
                     pos += 2;
                     tokens.add(new Token(TokenType.NEQ, "!=", startLine));
                 } else {
+                    error("Unexpected '!'. Did you mean '!=' (not equal)?");
                     tokens.add(new Token(TokenType.UNKNOWN, "!", line));
                     pos++;
                 }
@@ -121,7 +137,9 @@ public class Lexer {
                 case '}': tokens.add(new Token(TokenType.RIGHT_BRACE, "}", line)); pos++; continue;
                 case ';': tokens.add(new Token(TokenType.SEMICOLON, ";", line)); pos++; continue;
                 default:
-                    // Unexpected character: record it but keep scanning, never crash
+                    // Truly unrecognized character: report it, but keep scanning
+                    // instead of crashing, so later problems can be found too.
+                    error("Unexpected character '" + c + "'.");
                     tokens.add(new Token(TokenType.UNKNOWN, String.valueOf(c), line));
                     pos++;
                     continue;
@@ -178,5 +196,9 @@ public class Lexer {
     private char peekNext() {
         if (pos + 1 >= source.length()) return '\0';
         return source.charAt(pos + 1);
+    }
+
+    private void error(String message) {
+        diagnostics.error("Lexical", line, message);
     }
 }
