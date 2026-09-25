@@ -1,4 +1,4 @@
-package compiler;
+git package compiler;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,7 +49,7 @@ public class Main {
 
         // ---------- PHASE 1: LEXER ----------
         System.out.println("\n===== PHASE 1: LEXICAL ANALYSIS (TOKENS) =====\n");
-        Lexer lexer = new Lexer(source);
+        Lexer lexer = new Lexer(source, diagnostics);
         List<Token> tokens = lexer.scanTokens();
         for (Token token : tokens) {
             System.out.println(token);
@@ -63,6 +63,7 @@ public class Main {
         if (diagnostics.hasErrors()) {
             System.out.println("\nParsing Failed - Syntax is Invalid");
             System.out.println("(skipping semantic analysis and code generation)\n");
+            printSummary(diagnostics);
             return;
         }
         System.out.println("Parsing Successful - Syntax is Valid");
@@ -75,6 +76,7 @@ public class Main {
         if (!semanticOk) {
             System.out.println("\nSemantic analysis failed.");
             System.out.println("(skipping code generation)\n");
+            printSummary(diagnostics);
             return;
         }
         System.out.println("No semantic errors - program is well-typed.");
@@ -93,7 +95,21 @@ public class Main {
         System.out.println("(generated code written to " + outputFile + ")\n");
         runPython(outputFile);
 
+        printSummary(diagnostics);
         System.out.println();
+    }
+
+    /** Prints a one-line "N error(s), M warning(s)" count for this test, if there were any. */
+    private static void printSummary(Diagnostic diagnostics) {
+        long errorCount = diagnostics.getEntries().stream()
+                .filter(e -> e.severity == Diagnostic.Severity.ERROR).count();
+        long warningCount = diagnostics.getEntries().stream()
+                .filter(e -> e.severity == Diagnostic.Severity.WARNING).count();
+
+        if (errorCount == 0 && warningCount == 0) return;
+
+        System.out.println("----------------------------------------");
+        System.out.println("Summary: " + errorCount + " error(s), " + warningCount + " warning(s)");
     }
 
     /** Try to run the generated Python file with python3, falling back to python. */

@@ -1,0 +1,7 @@
+# Should FAIL at the lexer phase: '@' is not a valid character in this
+# language, and bare '=' isn't valid either (must be ':=' or '==').
+# The lexer should report both clearly, by line, and keep scanning
+# instead of crashing or silently producing garbage tokens.
+
+gona x @ = 10;
+koiyo(x);
