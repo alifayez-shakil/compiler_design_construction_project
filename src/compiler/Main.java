@@ -8,15 +8,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Entry point. Runs every .bng file under tests/ through the full pipeline:
- *   Lexer -> Parser -> SemanticAnalyzer -> CodeGenerator -> (run the output)
- *
- * Each test's generated Python file is written to build/runs/<test-name>/,
- * matching the project's target folder layout. This also serves as a
- * simple regression check: the "error" tests are expected to fail at a
- * specific phase, and this run confirms they still do.
- */
+
 public class Main {
 
     private static final Path TESTS_DIR = Paths.get("tests");
@@ -31,8 +23,7 @@ public class Main {
             return;
         }
 
-        Arrays.sort(testFiles); // stable, alphabetical order
-
+        Arrays.sort(testFiles); 
         for (File file : testFiles) {
             String name = file.getName().replace(".bng", "");
             String source = Files.readString(file.toPath());
@@ -47,7 +38,6 @@ public class Main {
 
         Diagnostic diagnostics = new Diagnostic();
 
-        // ---------- PHASE 1: LEXER ----------
         System.out.println("\n===== PHASE 1: LEXICAL ANALYSIS (TOKENS) =====\n");
         Lexer lexer = new Lexer(source, diagnostics);
         List<Token> tokens = lexer.scanTokens();
@@ -55,7 +45,14 @@ public class Main {
             System.out.println(token);
         }
 
-        // ---------- PHASE 2: PARSER ----------
+
+        if (diagnostics.hasErrors()) {
+            System.out.println("\nLexing Failed - invalid characters in source");
+            System.out.println("(skipping parser, semantic analysis, and code generation)\n");
+            printSummary(diagnostics);
+            return;
+        }
+
         System.out.println("\n===== PHASE 2: SYNTAX ANALYSIS (PARSER) =====\n");
         Parser parser = new Parser(tokens, diagnostics);
         Ast.Program program = parser.parseProgram();
@@ -68,7 +65,6 @@ public class Main {
         }
         System.out.println("Parsing Successful - Syntax is Valid");
 
-        // ---------- PHASE 3: SEMANTIC ANALYSIS ----------
         System.out.println("\n===== PHASE 3: SEMANTIC ANALYSIS =====\n");
         SemanticAnalyzer analyzer = new SemanticAnalyzer(diagnostics);
         boolean semanticOk = analyzer.analyze(program);
@@ -81,13 +77,11 @@ public class Main {
         }
         System.out.println("No semantic errors - program is well-typed.");
 
-        // ---------- PHASE 4: CODE GENERATION (PYTHON) ----------
         System.out.println("\n===== PHASE 4: CODE GENERATION (PYTHON TARGET) =====\n");
         CodeGenerator generator = new CodeGenerator();
         String pythonCode = generator.generate(program);
         System.out.println(pythonCode);
 
-        // ---------- PHASE 5: EXECUTE GENERATED PYTHON ----------
         Path runDir = RUNS_DIR.resolve(name);
         Files.createDirectories(runDir);
         Path outputFile = runDir.resolve("generated_program.py");
@@ -99,7 +93,6 @@ public class Main {
         System.out.println();
     }
 
-    /** Prints a one-line "N error(s), M warning(s)" count for this test, if there were any. */
     private static void printSummary(Diagnostic diagnostics) {
         long errorCount = diagnostics.getEntries().stream()
                 .filter(e -> e.severity == Diagnostic.Severity.ERROR).count();
@@ -112,24 +105,49 @@ public class Main {
         System.out.println("Summary: " + errorCount + " error(s), " + warningCount + " warning(s)");
     }
 
-    /** Try to run the generated Python file with python3, falling back to python. */
+ 
     private static void runPython(Path filePath) {
-        for (String cmd : new String[]{"python3", "python"}) {
-            try {
-                Process p = new ProcessBuilder(cmd, filePath.toString())
-                        .redirectErrorStream(true)
-                        .start();
-                String output = new String(p.getInputStream().readAllBytes());
-                int exitCode = p.waitFor();
-                if (exitCode == 0) {
-                    System.out.println("===== EXECUTION OUTPUT (" + cmd + ") =====\n");
-                    System.out.println(output);
-                    return;
-                }
-            } catch (Exception ignored) {
-                // try next command
-            }
-        }
-        System.out.println("(Python not found on PATH - skipping execution)");
+    String localAppData = System.getenv("LOCALAPPDATA");
+    java.util.List<String> commands = new java.util.ArrayList<>();
+
+    // Full paths to known real Python installations
+    if (localAppData != null) {
+        commands.add(localAppData + "\\Programs\\Python\\Python314\\python.exe");
+        commands.add(localAppData + "\\Programs\\Python\\Python313\\python.exe");
     }
+
+    // The py launcher (usually reliable)
+    commands.add("py");
+
+    // Bare commands (may hit the fake Store alias — we detect and skip)
+    commands.add("python");
+    commands.add("python3");
+
+    for (String cmd : commands) {
+        Process p;
+        try {
+            p = new ProcessBuilder(cmd, filePath.toString())
+                    .redirectErrorStream(true)
+                    .start();
+        } catch (Exception e) {
+            continue;
+        }
+        try {
+            String output = new String(p.getInputStream().readAllBytes());
+            int exitCode = p.waitFor();
+
+            // Skip the Microsoft Store hijack
+            if (exitCode == 9009 || output.contains("Python was not found")) {
+                continue;
+            }
+
+            System.out.println("===== EXECUTION OUTPUT (" + cmd + ", exit " + exitCode + ") =====\n");
+            System.out.println(output);
+            return;
+        } catch (Exception e) {
+            continue;
+        }
+    }
+    System.out.println("(Python not found - skipping execution)");
+}
 }
